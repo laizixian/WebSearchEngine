@@ -7,6 +7,7 @@ from lxml import html
 import requests
 from concurrent.futures import ThreadPoolExecutor
 from threading import RLock
+import logging
 
 
 def extract_root(url):
@@ -60,6 +61,7 @@ class MultiThreadCrawler:
         self.importance_score = {}
         self.novelty = {}
         self.pool = ThreadPoolExecutor(max_workers=worker_num)
+        self.crawled_sites = set([])
 
     def update_importance_score(self, root_url):
         if root_url not in self.importance_score:
@@ -98,7 +100,7 @@ class MultiThreadCrawler:
         cur_root_url = extract_root(cur_url)
         self.update_novelty_score(cur_root_url)
         self.update_importance_score(cur_root_url)
-        # print("getting {} {}".format(self.importance_score[cur_root_url] + self.novelty[cur_root_url], cur_url))
+        print("getting {} {}".format(self.importance_score[cur_root_url] + self.novelty[cur_root_url], cur_url))
         if cur_root_url not in self.robots_rule:
             self.robots_rule[cur_root_url] = get_robot(cur_root_url)
         if check_robot(self.robots_rule[cur_root_url], cur_url):
@@ -133,7 +135,7 @@ class MultiThreadCrawler:
 
     def start_crawler_threaded(self):
         self.add_seed()
-        for i in range(1, 30):
+        for i in range(1, 300):
             #try:
             target_url = self.priority_queue.get(timeout=5)
             score = target_url[0]
@@ -148,6 +150,6 @@ class MultiThreadCrawler:
 
 
 if __name__ == '__main__':
-    crawler = MultiThreadCrawler("computer", 1, 2)
+    crawler = MultiThreadCrawler("big data", 1, 100)
     crawler.start_crawler_threaded()
 
