@@ -8,6 +8,7 @@ import requests
 from concurrent.futures import ThreadPoolExecutor
 from threading import RLock
 import logging
+import time
 
 
 def extract_root(url):
@@ -21,35 +22,25 @@ def extract_root(url):
     return root_url
 
 
-def get_robot(root_url):
-    """
-    get the robot file
-    :param root_url:
-    :return: RobotFileParser
-    """
-    new_url = urljoin(root_url, 'robots.txt')
-    rp = urllib.robotparser.RobotFileParser()
-    rp.set_url(new_url)
-    rp.read()
-    return rp
-
-
 def check_robot(robot_parse, url):
     return robot_parse.can_fetch('*', url)
-
-
-def request_page(url):
-    try:
-        res = requests.get(url, timeout=(3, 30))
-        return res
-    except requests.RequestException:
-        return
 
 
 class MultiThreadCrawler:
     SEED_SIZE = 10
     SEED_SCORE = -1000
     lock = RLock()
+    logger = logging.getLogger("threaded crawler")
+    logger.setLevel(logging.DEBUG)
+    fh = logging.FileHandler("crawler.log")
+    fh.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.ERROR)
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    fh.setFormatter(formatter)
+    ch.setFormatter(formatter)
+    logger.addHandler(fh)
+    logger.addHandler(ch)
 
     def __init__(self, keywords, max_hop, worker_num):
         self.keywords = keywords
@@ -62,6 +53,39 @@ class MultiThreadCrawler:
         self.novelty = {}
         self.pool = ThreadPoolExecutor(max_workers=worker_num)
         self.crawled_sites = set([])
+        self.requested = set([])
+
+    def request_page(self, url):
+        try:
+            root = extract_root(url)
+            if root in self.requested:
+                time.sleep(5)
+                if root in self.requested:
+                    self.requested.remove(root)
+                res = requests.get(url, timeout=(3, 30))
+                self.requested.add(root)
+                return res
+            else:
+                res = requests.get(url, timeout=(3, 30))
+                return res
+        except requests.RequestException:
+            return
+
+    def get_robot(self, root_url):
+        """
+        get the robot file
+        :param root_url:
+        :return: RobotFileParser
+        """
+        new_url = urljoin(root_url, 'robots.txt')
+        rp = urllib.robotparser.RobotFileParser()
+        rp.set_url(new_url)
+        try:
+            rp.read()
+            return rp
+        except Exception as e:
+            print(e)
+            return None
 
     def update_importance_score(self, root_url):
         if root_url not in self.importance_score:
@@ -71,9 +95,9 @@ class MultiThreadCrawler:
 
     def update_novelty_score(self, root_url):
         if root_url not in self.novelty:
-            self.novelty[root_url] = 0
+            self.novelty[root_url] = -100
         else:
-            self.novelty[root_url] = self.novelty[root_url] + 2
+            self.novelty[root_url] = self.novelty[root_url] + 1
 
     def add_seed(self):
         seed_list = search(self.keywords, tld='com', lang='en', num=self.SEED_SIZE, stop=self.SEED_SIZE, pause=1)
@@ -83,7 +107,7 @@ class MultiThreadCrawler:
                 self.update_novelty_score(root_url)
                 self.update_importance_score(root_url)
                 if root_url not in self.robots_rule:
-                    robot_parser = get_robot(root_url)
+                    robot_parser = self.get_robot(root_url)
                     self.robots_rule[root_url] = robot_parser
                 self.priority_queue.put((self.SEED_SCORE, s))
             except Exception as e:
@@ -97,59 +121,63 @@ class MultiThreadCrawler:
 
     def parse_page(self, request_result):
         cur_url = request_result.url
+        print(len(request_result.text))
         cur_root_url = extract_root(cur_url)
         self.update_novelty_score(cur_root_url)
-        self.update_importance_score(cur_root_url)
-        print("getting {} {}".format(self.importance_score[cur_root_url] + self.novelty[cur_root_url], cur_url))
         if cur_root_url not in self.robots_rule:
-            self.robots_rule[cur_root_url] = get_robot(cur_root_url)
+            robot_file = self.get_robot(cur_root_url)
+            if robot_file is not None:
+                self.robots_rule[cur_root_url] = robot_file
+            else:
+                raise Exception("cant read robot.txt")
         if check_robot(self.robots_rule[cur_root_url], cur_url):
+            cur_importance = 0 if cur_root_url not in self.importance_score else self.importance_score[cur_root_url]
+            # self.logger.info("getting {} {}".format(self.importance_score[cur_root_url] + self.novelty[cur_root_url], cur_url))
+            print("getting {} {}".format(cur_importance+ self.novelty[cur_root_url], cur_url))
+            string_doc = None
             try:
                 string_doc = html.fromstring(request_result.content)
             except Exception as e:
-                print(e, cur_url)
-                pass
-            links = list(string_doc.iterlinks())
-            for url in links:
-                if url[1] == 'href':
-                    new_url = urljoin(cur_root_url, url[2])
-                    new_url_root = extract_root(new_url)
-                    if new_url_root != cur_root_url:
-                        self.update_importance_score(new_url_root)
-                        self.update_novelty_score(new_url_root)
-                        priority_score = self.importance_score[new_url_root] + self.novelty[new_url_root]
-                        self.priority_queue.put((priority_score, new_url))
-                    else:
-                        priority_score = self.importance_score[new_url_root] + self.novelty[new_url_root]
+                # need error logger
+                print(e)
+            if string_doc is not None:
+                links = list(string_doc.iterlinks())
+                for url in links:
+                    if url[1] == 'href':
+                        new_url = urljoin(cur_root_url, url[2])
+                        new_url_root = extract_root(new_url)
+                        if new_url_root != cur_root_url:
+                            self.update_importance_score(new_url_root)
+
+                        importance_score = 0
+                        novelty_score = -100
+                        try:
+                            importance_score = self.importance_score[new_url_root]
+                            novelty_score = self.novelty[new_url_root]
+                        except Exception as e:
+                            pass
+                        priority_score = importance_score + novelty_score
                         self.priority_queue.put((priority_score, new_url))
         else:
-            print("cant crawl {}".format(cur_root_url))
-
-    def start_crawler(self):
-        self.add_seed()
-        target_url = self.priority_queue.get(timeout=5)
-        target_url = target_url[1]
-        self.crawled_url.add(target_url)
-        r = request_page(target_url)
-        self.parse_page(r)
+            # need info logger
+            print("can not crawl base on robot.txt {}".format(cur_url))
 
     def start_crawler_threaded(self):
         self.add_seed()
-        for i in range(1, 300):
-            #try:
-            target_url = self.priority_queue.get(timeout=5)
-            score = target_url[0]
-            target_url = target_url[1]
-            if target_url not in self.crawled_url:
-                self.crawled_url.add(target_url)
-                job = self.pool.submit(request_page, target_url)
-                job.add_done_callback(self.request_callback)
-            #except Exception as e:
-            #    print(e)
-            #    continue
+        for i in range(1, 1000):
+            try:
+                target_url = self.priority_queue.get(timeout=5)
+                target_url = target_url[1]
+                if target_url not in self.crawled_url:
+                    self.crawled_url.add(target_url)
+                    job = self.pool.submit(self.request_page, target_url)
+                    job.add_done_callback(self.request_callback)
+                # need error logger
+            except Exception as e:
+                print(e)
+                continue
 
 
 if __name__ == '__main__':
-    crawler = MultiThreadCrawler("big data", 1, 100)
+    crawler = MultiThreadCrawler("let it go", 1, 100)
     crawler.start_crawler_threaded()
-
