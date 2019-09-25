@@ -28,7 +28,7 @@ def check_robot(robot_parse, url):
 
 class MultiThreadCrawler:
     SEED_SIZE = 10
-    SEED_SCORE = -1000
+    SEED_SCORE = -100
     lock = RLock()
     logger = logging.getLogger("threaded crawler")
     logger.setLevel(logging.DEBUG)
@@ -54,22 +54,6 @@ class MultiThreadCrawler:
         self.pool = ThreadPoolExecutor(max_workers=worker_num)
         self.crawled_sites = set([])
         self.requested = set([])
-
-    def request_page(self, url):
-        try:
-            root = extract_root(url)
-            if root in self.requested:
-                time.sleep(5)
-                if root in self.requested:
-                    self.requested.remove(root)
-                res = requests.get(url, timeout=(3, 30))
-                self.requested.add(root)
-                return res
-            else:
-                res = requests.get(url, timeout=(3, 30))
-                return res
-        except requests.RequestException:
-            return
 
     def get_robot(self, root_url):
         """
@@ -109,31 +93,53 @@ class MultiThreadCrawler:
                 if root_url not in self.robots_rule:
                     robot_parser = self.get_robot(root_url)
                     self.robots_rule[root_url] = robot_parser
-                self.priority_queue.put((self.SEED_SCORE, s))
+                self.priority_queue.put((self.SEED_SCORE, (s, 0)))
             except Exception as e:
                 print(e)
                 pass
 
+    def request_page(self, target_site):
+        try:
+            url = target_site[1][0]
+            root = extract_root(url)
+            if root in self.requested:
+                time.sleep(5)
+                if root in self.requested:
+                    self.requested.remove(root)
+                res = requests.get(url, timeout=(3, 30))
+                self.requested.add(root)
+                return res, target_site[0], target_site[1][1]
+            else:
+                res = requests.get(url, timeout=(3, 30))
+                return res, target_site[0], target_site[1][1]
+        except requests.RequestException:
+            return
+
     def request_callback(self, res):
         result = res.result()
-        if result and result.status_code == 200:
-            self.parse_page(result)
+        if result and result[0].status_code == 200:
+            url_result = result[0]
+            priority_score = result[1]
+            distance = result[2]
+            self.parse_page(url_result, priority_score, distance)
 
-    def parse_page(self, request_result):
+    def parse_page(self, request_result, priority_score, distance):
         cur_url = request_result.url
         print(len(request_result.text))
         cur_root_url = extract_root(cur_url)
         self.update_novelty_score(cur_root_url)
+
         if cur_root_url not in self.robots_rule:
             robot_file = self.get_robot(cur_root_url)
             if robot_file is not None:
                 self.robots_rule[cur_root_url] = robot_file
             else:
                 raise Exception("cant read robot.txt")
+
         if check_robot(self.robots_rule[cur_root_url], cur_url):
             cur_importance = 0 if cur_root_url not in self.importance_score else self.importance_score[cur_root_url]
             # self.logger.info("getting {} {}".format(self.importance_score[cur_root_url] + self.novelty[cur_root_url], cur_url))
-            print("getting {} {}".format(cur_importance+ self.novelty[cur_root_url], cur_url))
+            print("getting {} {}".format(cur_importance + self.novelty[cur_root_url], cur_url))
             string_doc = None
             try:
                 string_doc = html.fromstring(request_result.content)
@@ -157,7 +163,7 @@ class MultiThreadCrawler:
                         except Exception as e:
                             pass
                         priority_score = importance_score + novelty_score
-                        self.priority_queue.put((priority_score, new_url))
+                        self.priority_queue.put((priority_score, (new_url, distance + 1)))
         else:
             # need info logger
             print("can not crawl base on robot.txt {}".format(cur_url))
@@ -166,11 +172,11 @@ class MultiThreadCrawler:
         self.add_seed()
         for i in range(1, 1000):
             try:
-                target_url = self.priority_queue.get(timeout=5)
-                target_url = target_url[1]
+                target_site = self.priority_queue.get(timeout=5)
+                target_url = target_site[1][0]
                 if target_url not in self.crawled_url:
                     self.crawled_url.add(target_url)
-                    job = self.pool.submit(self.request_page, target_url)
+                    job = self.pool.submit(self.request_page, target_site)
                     job.add_done_callback(self.request_callback)
                 # need error logger
             except Exception as e:
