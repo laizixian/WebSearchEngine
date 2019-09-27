@@ -124,7 +124,6 @@ class MultiThreadCrawler:
     def parse_page(self, request_result, priority_score, distance):
         cur_url = request_result.url
         cur_root_url = extract_root(cur_url)
-        self.update_novelty_score(cur_root_url)
 
         if cur_root_url not in self.robots_rule:
             robot_file = self.get_robot(cur_root_url)
@@ -152,7 +151,7 @@ class MultiThreadCrawler:
                         if new_url_root != cur_root_url:
                             self.update_importance_score(new_url_root)
                         importance_score = 0
-                        novelty_score = -100
+                        novelty_score = priority_score - 1
                         try:
                             importance_score = self.importance_score[new_url_root]
                             novelty_score = self.novelty[new_url_root]
@@ -172,6 +171,7 @@ class MultiThreadCrawler:
                 target_url = target_site[1][0]
                 if target_url not in self.crawled_url:
                     self.crawled_url.add(target_url)
+                    self.update_novelty_score(extract_root(target_url))
                     job = self.pool.submit(self.request_page, target_site)
                     job.add_done_callback(self.request_callback)
             except Exception as e:
