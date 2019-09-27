@@ -154,13 +154,12 @@ class MultiThreadCrawler:
                         new_url_root = extract_root(new_url)
                         if new_url_root != cur_root_url:
                             self.update_importance_score(new_url_root)
-                        importance_score = 0
-                        novelty_score = priority_score - 1
                         try:
                             importance_score = self.importance_score[new_url_root]
                             novelty_score = self.novelty[new_url_root]
                         except Exception as e:
-                            pass
+                            importance_score = 0
+                            novelty_score = priority_score - 1
                         priority_score = importance_score + novelty_score
                         self.priority_queue.put((priority_score, (new_url, distance + 1)))
         else:
