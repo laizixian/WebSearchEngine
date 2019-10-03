@@ -1,0 +1,25 @@
+    The program takes in user input and uses the googlesearch library to fetch the
+top 10 result from google search as seed url and insert them into the priority
+queue with a SEED_SCORE.
+    After inserting the seed url into the priority queue, the program fetches the url out
+of the queue base on the priority score and request the page.
+    During requesting, the program also request for the robots.txt file for the site
+and store the robots.txt in a dictionary base on the site's name. So that when the program
+request for pages from the same site, it won't need to request for the robots.txt again.
+    During parsing, the program parses the page and discover new urls in the page using lxml library. The
+new urls will be inserted into the priority queue base on the addition of importance and novelty score.
+The importance and novelty scores are dictionaries with site's url as key.
+    The program waits for 2 seconds for requesting the same site that has been requested within 2 seconds.
+    The program produce a log file which contains the time of crawling, priority score, url, and the distance from
+the seed url.
+
+Problems with the program:
+    The program did not provide a block list for files such as .ico. The program raise exceptions
+as it reads files that can't be parsed as html files and log them as errors.
+    The program did not provide a locking mechanism on the updating of importance and novelty dictionary
+to ensure thread safety.
+    The program only update priority score base on the novelty and importance score while inserting into the priority queue,
+it does not update scores of urls that are already in the priority queue.
+
+Resources:
+used googlesearch library to get the top 10 results from google
