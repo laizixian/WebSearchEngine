@@ -1,20 +1,19 @@
 package edu.nyu.cs6913;
 
 import org.jwat.common.HeaderLine;
-import org.jwat.warc.WarcReader;
-import org.jwat.warc.WarcReaderFactory;
-import org.jwat.warc.WarcRecord;
+import org.jwat.warc.*;
 
 import java.io.*;
-import java.util.ArrayList;
 import java.util.List;
 
 public class Parser {
 
-    InputStream _inputStream;
+    private InputStream _inputStream;
+    private OutputStream _outputStream;
 
     public Parser() {
         _inputStream = null;
+        _outputStream = null;
     }
 
     public boolean checkValid(WarcRecord record) {
@@ -38,8 +37,7 @@ public class Parser {
         File inputFile = new File(fileName);
         try {
             _inputStream = new FileInputStream(inputFile);
-            WarcReader warcReader = WarcReaderFactory.getReaderCompressed(_inputStream);
-            return warcReader;
+            return WarcReaderFactory.getReaderCompressed(_inputStream);
         }
         catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -50,14 +48,13 @@ public class Parser {
         return null;
     }
 
-    public List<String> getWordsList(String payload) {
-        List<String> wordList = new ArrayList<String>();
+    public void getWordsList(String payload, List<String> wordList) {
         int len = payload.length();
         int startIndex = Character.isLetterOrDigit(payload.charAt(0)) ? 0 : 1;
         for (int i = 1; i < len; i++) {
             if (!Character.isLetterOrDigit(payload.charAt(i))) {
                 if (Character.isLetterOrDigit(payload.charAt(i - 1))) {
-                    wordList.add(payload.substring(startIndex, i));
+                    wordList.add(payload.substring(startIndex, i).toLowerCase());
                 }
                 startIndex = i + 1;
             }
@@ -65,14 +62,16 @@ public class Parser {
         if (Character.isLetterOrDigit(payload.charAt(len - 1))) {
             wordList.add(payload.substring(startIndex, len));
         }
-        for (String s : wordList) {
-            System.out.println(s);
-        }
-        return wordList;
     }
 
-    public void closeInputStream() throws IOException {
-        _inputStream.close();
+    public void closeInputStream() {
+        try {
+            if (_inputStream != null) {
+                _inputStream.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 }
