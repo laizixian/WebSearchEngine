@@ -48,18 +48,24 @@ public class Parser {
         return null;
     }
 
+    private boolean isLetterOrDigit(char c) {
+        return (c >= 'a' && c <= 'z') ||
+                (c >= 'A' && c <= 'Z') ||
+                (c >= '0' && c <= '9');
+    }
+
     public void getWordsList(String payload, List<String> wordList) {
         int len = payload.length();
-        int startIndex = Character.isLetterOrDigit(payload.charAt(0)) ? 0 : 1;
+        int startIndex = isLetterOrDigit(payload.charAt(0)) ? 0 : 1;
         for (int i = 1; i < len; i++) {
-            if (!Character.isLetterOrDigit(payload.charAt(i))) {
-                if (Character.isLetterOrDigit(payload.charAt(i - 1))) {
+            if (!isLetterOrDigit(payload.charAt(i))) {
+                if (isLetterOrDigit(payload.charAt(i - 1))) {
                     wordList.add(payload.substring(startIndex, i).toLowerCase());
                 }
                 startIndex = i + 1;
             }
         }
-        if (Character.isLetterOrDigit(payload.charAt(len - 1))) {
+        if (isLetterOrDigit(payload.charAt(len - 1))) {
             wordList.add(payload.substring(startIndex, len));
         }
     }

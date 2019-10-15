@@ -17,7 +17,7 @@ public class warcParseTest {
         String path = FilenameUtils.normalize(home + "/Documents/WebSearchEngine/FilteredFiles/Filtered-CC-MAIN-20190915052433-20190915074433-00190.warc.wet.gz");
         System.out.println(path);
         WarcReader testReader = parser.readWarc(path);
-        List<String> wordList = new ArrayList<String>();
+        List<String> wordList = new ArrayList<>();
         try {
             int totalRecord = 0;
             for (WarcRecord record : testReader) {

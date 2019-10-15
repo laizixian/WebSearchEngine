@@ -9,23 +9,22 @@ import java.io.FilenameFilter;
 public class createInvertedIndex {
     public static void main(String[] args) {
         String inputPath = args[0];
+        int RAM_Size = Integer.parseInt(args[1]);
         String home = System.getProperty("user.home");
         String trueInputPath = FilenameUtils.normalize(home + inputPath);
         File inputDir = new File(trueInputPath);
-        FilenameFilter gzFilter = new FilenameFilter() {
-            public boolean accept(File dir, String name) {
-                return name.toLowerCase().endsWith(".gz");
-            }
-        };
+        FilenameFilter gzFilter = (dir, name) -> name.toLowerCase().endsWith(".gz");
         File[] inputFiles = inputDir.listFiles(gzFilter);
         Parser parser = new Parser();
         assert inputFiles != null;
-        for (File f : inputFiles) {
-            String inputFilePath = trueInputPath + f.getName();
+        System.out.println(trueInputPath);
+        Postings subPostings = new Postings(RAM_Size, trueInputPath);
+        int totalFiles = inputFiles.length;
+        for (int i = 0; i < totalFiles; i++) {
+            String inputFilePath = trueInputPath + inputFiles[i].getName();
             WarcReader warcReader = parser.readWarc(inputFilePath);
             System.out.println(inputFilePath);
-            //TO-DO
-            // pass the input file into Postings class to process
+            subPostings.parseReader(warcReader, i, totalFiles);
         }
     }
 }

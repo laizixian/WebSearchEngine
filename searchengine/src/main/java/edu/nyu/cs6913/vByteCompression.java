@@ -1,7 +1,6 @@
 package edu.nyu.cs6913;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 
 public class vByteCompression {
