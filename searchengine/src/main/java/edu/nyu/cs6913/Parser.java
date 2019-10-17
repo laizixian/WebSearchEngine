@@ -9,11 +9,9 @@ import java.util.List;
 public class Parser {
 
     private InputStream _inputStream;
-    private OutputStream _outputStream;
 
     public Parser() {
         _inputStream = null;
-        _outputStream = null;
     }
 
     public boolean checkValid(WarcRecord record) {
@@ -38,11 +36,7 @@ public class Parser {
         try {
             _inputStream = new FileInputStream(inputFile);
             return WarcReaderFactory.getReaderCompressed(_inputStream);
-        }
-        catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
         return null;
@@ -54,19 +48,25 @@ public class Parser {
                 (c >= '0' && c <= '9');
     }
 
-    public void getWordsList(String payload, List<String> wordList) {
+    void getWordsList(String payload, List<String> wordList) {
         int len = payload.length();
         int startIndex = isLetterOrDigit(payload.charAt(0)) ? 0 : 1;
         for (int i = 1; i < len; i++) {
             if (!isLetterOrDigit(payload.charAt(i))) {
                 if (isLetterOrDigit(payload.charAt(i - 1))) {
-                    wordList.add(payload.substring(startIndex, i).toLowerCase());
+                    String temp = payload.substring(startIndex, i).toLowerCase();
+                    if (temp.length() < 30) {
+                        wordList.add(temp);
+                    }
                 }
                 startIndex = i + 1;
             }
         }
         if (isLetterOrDigit(payload.charAt(len - 1))) {
-            wordList.add(payload.substring(startIndex, len));
+            String temp = payload.substring(startIndex, len).toLowerCase();
+            if (temp.length() < 30) {
+                wordList.add(temp);
+            }
         }
     }
 
@@ -79,5 +79,4 @@ public class Parser {
             e.printStackTrace();
         }
     }
-
 }

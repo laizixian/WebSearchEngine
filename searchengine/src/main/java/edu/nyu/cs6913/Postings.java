@@ -4,20 +4,19 @@ import org.apache.commons.io.IOUtils;
 import org.jwat.common.HeaderLine;
 import org.jwat.warc.WarcReader;
 import org.jwat.warc.WarcRecord;
+import sun.jvm.hotspot.oops.ArrayKlass;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.nio.Buffer;
 import java.util.*;
 
-public class Postings {
+class Postings {
     private long _maxBlockSizeBytes;
     private long _fileDocID;
+    private int _tempFileID;
     private HashMap<String, ArrayList<docIDtoFreq>> _MapWordToDocID;
     private HashMap<String, Long> _MapWordToFreq;
-    private String _outputPath;
-    private String _tempDocID;
+    String _tempDocID;
     private String _tempLexicon;
     private String _tempInvertedIndex;
     private long _currBlockSizeBytes;
@@ -26,38 +25,38 @@ public class Postings {
     private class docIDtoFreq {
         byte[] _docID;
         byte[] _freq;
-        public docIDtoFreq(long docID, long freq) {
+        docIDtoFreq(long docID, long freq) {
             _docID = _encoder.vByteEncode(docID);
             _freq = _encoder.vByteEncode(freq);
         }
     }
 
-    public Postings(long maxBlockSizeMB, String outputPath) {
+    Postings(long maxBlockSizeMB, String outputPath) {
         _maxBlockSizeBytes = maxBlockSizeMB * 1024 * 1024;
         _currBlockSizeBytes = 0;
         _fileDocID = 0;
+        _tempFileID = 0;
         _MapWordToDocID = new HashMap<>();
         _MapWordToFreq = new HashMap<>();
-        _outputPath = outputPath;
-        _tempDocID = _outputPath + "temp/DocID/";
-        _tempLexicon = _outputPath + "temp/Lexicon/";
-        _tempInvertedIndex = _outputPath + "temp/InvertedIndex/";
+        _tempDocID = outputPath + "temp/DocID/";
+        _tempLexicon = outputPath + "temp/Lexicon/";
+        _tempInvertedIndex = outputPath + "temp/InvertedIndex/";
         new File(_tempDocID).mkdirs();
         new File(_tempLexicon).mkdirs();
         new File(_tempInvertedIndex).mkdirs();
     }
 
-    public void addWordToFreq(List<String> wordList) {
+    private void addWordToFreq(List<String> wordList) {
         for (String w : wordList) {
             _MapWordToFreq.put(w, _MapWordToFreq.getOrDefault(w, (long) 0) + 1);
         }
     }
 
-    public void addBlockSize(docIDtoFreq docItem) {
+    private void addBlockSize(docIDtoFreq docItem) {
         _currBlockSizeBytes += docItem._docID.length + docItem._freq.length;
     }
 
-    public void addToPosting() {
+    private void addToPosting() {
         for (Map.Entry<String, Long> wordToFreq : _MapWordToFreq.entrySet()) {
             ArrayList<docIDtoFreq> currDoc = _MapWordToDocID.getOrDefault(wordToFreq.getKey(), new ArrayList<>());
             docIDtoFreq docItem = new docIDtoFreq(_fileDocID, wordToFreq.getValue());
@@ -67,34 +66,66 @@ public class Postings {
         }
     }
 
-    public void addToDocID(String filename) {
-        File file = new File(_tempDocID + "DocIDs");
-        try {
-            file.createNewFile();
-            FileWriter fr = new FileWriter(file, true);
-            fr.write(filename);
-            fr.close();
+    private void appendToLexicon(BufferedWriter lexiconWriter, String term, long indexStart, long indexEnd, long freqEnd) {
+        try{
+            lexiconWriter.write(term + " " + indexStart + " " + indexEnd + " " + freqEnd + "\n");
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public void writeToInvertedIndex() {
+    private void writeToInvertedIndex() {
         System.out.println("output sub block inverted index");
+        File tempInvertedIndex = new File(_tempInvertedIndex + _tempFileID + ".tempIndex");
+        File tempLexicon = new File(_tempLexicon + _tempFileID + ".tempLexicon");
         ArrayList<String> sortedKeys = new ArrayList<>(_MapWordToDocID.keySet());
         Collections.sort(sortedKeys);
-        System.out.println(sortedKeys.size());
+        long indexStart = 0;
+        long indexEnd = 0;
+        long freqEnd = 0;
+        try {
+            tempInvertedIndex.createNewFile();
+            tempLexicon.createNewFile();
+            BufferedWriter lexiconWriter = new BufferedWriter(new FileWriter(tempLexicon));
+            OutputStream invertedIndexWriter = new FileOutputStream(tempInvertedIndex);
+            BufferedOutputStream bufferedInvertedIndexWriter = new BufferedOutputStream(invertedIndexWriter);
+            for (String term : sortedKeys) {
+                ArrayList<docIDtoFreq> curIndex = _MapWordToDocID.get(term);
+                for (docIDtoFreq docIDAndFreq : curIndex) {
+                    bufferedInvertedIndexWriter.write(docIDAndFreq._docID);
+                    indexEnd += docIDAndFreq._docID.length;
+                }
+                freqEnd = indexEnd;
+                for (docIDtoFreq docIDtoFreq : curIndex) {
+                    bufferedInvertedIndexWriter.write(docIDtoFreq._freq);
+                    freqEnd += docIDtoFreq._freq.length;
+                }
+                appendToLexicon(lexiconWriter, term, indexStart, indexEnd, freqEnd);
+                indexStart = freqEnd;
+                indexEnd = indexStart;
+            }
+            bufferedInvertedIndexWriter.close();
+            invertedIndexWriter.close();
+            lexiconWriter.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        _tempFileID++;
+        sortedKeys.clear();
         _MapWordToDocID.clear();
     }
 
-    public void parseReader(WarcReader reader, int currFileNum, int totalFileNum) {
+    void parseReader(WarcReader reader, BufferedWriter docIDBufferedWriter, int currFileNum, int totalFileNum) {
         Parser parser = new Parser();
         try {
+            InputStream payloadStream = null;
+            BufferedInputStream temp = null;
             for (WarcRecord record : reader) {
-                InputStream payloadStream = record.getPayload().getInputStreamComplete();
-                String payload = IOUtils.toString(payloadStream, "UTF-8");
+                payloadStream = record.getPayload().getInputStreamComplete();
+                temp = new BufferedInputStream(payloadStream);
+                String payload = IOUtils.toString(temp, "UTF-8");
                 HeaderLine filename = record.getHeader("WARC-Target-URI");
-                addToDocID(filename.value + "\n");
+                docIDBufferedWriter.write(filename.value + "\n");
                 _fileDocID++;
                 List<String> wordList = new ArrayList<>();
                 parser.getWordsList(payload, wordList);
@@ -102,8 +133,16 @@ public class Postings {
                 addToPosting();
                 _MapWordToFreq.clear();
             }
+            if (temp != null) {
+                temp.close();
+            }
+            if (payloadStream != null) {
+                payloadStream.close();
+            }
+            System.out.println("Total pages: " + _fileDocID);
             if (_currBlockSizeBytes >= _maxBlockSizeBytes || currFileNum == totalFileNum - 1) {
                 writeToInvertedIndex();
+                _currBlockSizeBytes = 0;
             }
         } catch (IOException e) {
             e.printStackTrace();
