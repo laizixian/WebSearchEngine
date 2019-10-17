@@ -4,10 +4,8 @@ import org.apache.commons.io.IOUtils;
 import org.jwat.common.HeaderLine;
 import org.jwat.warc.WarcReader;
 import org.jwat.warc.WarcRecord;
-import sun.jvm.hotspot.oops.ArrayKlass;
 
 import java.io.*;
-import java.nio.Buffer;
 import java.util.*;
 
 class Postings {
