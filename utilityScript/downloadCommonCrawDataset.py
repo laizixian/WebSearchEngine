@@ -5,8 +5,9 @@ import os
 with open("wet.paths") as fPath:
     paths = fPath.read().splitlines()
 
-sampled_paths = sample(paths, 200)
+sampled_paths = paths[0:200]
 root_url = "https://commoncrawl.s3.amazonaws.com/"
+print((sampled_paths))
 
 for p in sampled_paths:
     url = root_url + p
