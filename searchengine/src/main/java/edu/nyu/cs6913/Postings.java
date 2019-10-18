@@ -8,6 +8,11 @@ import org.jwat.warc.WarcRecord;
 import java.io.*;
 import java.util.*;
 
+/**
+ * Posting class which creates sub inverted index files and lexicon files
+ * base be the max allowed size
+ */
+
 class Postings {
     private long _maxBlockSizeBytes;
     private long _fileDocID;
@@ -44,16 +49,27 @@ class Postings {
         new File(_tempInvertedIndex).mkdirs();
     }
 
+    /**
+     * add word to the the frequency map for each document
+     * @param wordList a word list for document
+     */
     private void addWordToFreq(List<String> wordList) {
         for (String w : wordList) {
             _MapWordToFreq.put(w, _MapWordToFreq.getOrDefault(w, (long) 0) + 1);
         }
     }
 
+    /**
+     * increase the current block size base on the frequency length and document id length
+     * @param docItem docID, freq
+     */
     private void addBlockSize(docIDtoFreq docItem) {
         _currBlockSizeBytes += docItem._docID.length + docItem._freq.length;
     }
 
+    /**
+     * add to the posting for the current document
+     */
     private void addToPosting() {
         for (Map.Entry<String, Long> wordToFreq : _MapWordToFreq.entrySet()) {
             ArrayList<docIDtoFreq> currDoc = _MapWordToDocID.getOrDefault(wordToFreq.getKey(), new ArrayList<>());
@@ -64,6 +80,14 @@ class Postings {
         }
     }
 
+    /**
+     * write to the lexicon file
+     * @param lexiconWriter a buffered writer for writing lexicon files
+     * @param term the term id in ASCII form
+     * @param indexStart the start byte of docID for that term
+     * @param indexEnd the end byte of docID for that term
+     * @param freqEnd the end byte of frequency for that term
+     */
     private void appendToLexicon(BufferedWriter lexiconWriter, String term, long indexStart, long indexEnd, long freqEnd) {
         try{
             lexiconWriter.write(term + " " + indexStart + " " + indexEnd + " " + freqEnd + "\n");
@@ -72,6 +96,10 @@ class Postings {
         }
     }
 
+    /**
+     * after the max block size has reached, this function write the sub block inverted
+     * index and lexicon to files.
+     */
     private void writeToInvertedIndex() {
         System.out.println("output sub block inverted index");
         File tempInvertedIndex = new File(_tempInvertedIndex + _tempFileID + ".tempIndex");
@@ -113,6 +141,13 @@ class Postings {
         _MapWordToDocID.clear();
     }
 
+    /**
+     * This function takes a WarcReader object and parse it into sub block inverted index
+     * @param reader a WarcReader object which contains documents
+     * @param docIDBufferedWriter a buffered writer for writing docIDs
+     * @param currFileNum the current file index
+     * @param totalFileNum the number of total files that need process
+     */
     void parseReader(WarcReader reader, BufferedWriter docIDBufferedWriter, int currFileNum, int totalFileNum) {
         Parser parser = new Parser();
         try {

@@ -30,6 +30,13 @@ public class Merger {
         }
     }
 
+    /**
+     * write to the index file
+     * @param indexFile the buffered output stream
+     * @param docIdList a list of byte array
+     * @param freqList a list of byte array
+     * @throws IOException throws exception if can not write to the output stream
+     */
     private void writeToIndexFile(BufferedOutputStream indexFile, List<byte[]> docIdList, List<byte[]> freqList) throws IOException {
         for (byte[] ids : docIdList) {
             indexFile.write(ids);
@@ -41,6 +48,10 @@ public class Merger {
         freqList.clear();
     }
 
+    /**
+     * close the file input stream
+     * @throws IOException throws exception if can not close the input stream
+     */
     private void closeFileInputStream() throws IOException {
         for (Map.Entry<String, BufferedInputStream> entry : _mapFileToInputStream.entrySet()) {
             entry.getValue().close();
@@ -48,6 +59,9 @@ public class Merger {
         _mapFileToInputStream.clear();
     }
 
+    /**
+     * delete all the temp files
+     */
     void deleteTempFiles() {
         String _invertedIndexFilePath = "temp/InvertedIndex";
         String invertedIndexPath = _inputPath + _invertedIndexFilePath;
@@ -69,6 +83,9 @@ public class Merger {
         }
     }
 
+    /**
+     * merge the temp files
+     */
     void startMerge() {
         String _invertedIndexFilePath = "temp/InvertedIndex";
         String invertedIndexPath = _inputPath + _invertedIndexFilePath;

@@ -5,9 +5,15 @@ import java.util.List;
 
 public class vByteCompression {
     private static final int VAR_BYTE_NUM = 128;
-    public vByteCompression() {
+    vByteCompression() {
     }
-    public byte[] vByteEncode(long docID) {
+
+    /**
+     * takes in a long and output an var-byte encoded byte array
+     * @param docID a long of docID
+     * @return a var-byte encoded byte array
+     */
+    byte[] vByteEncode(long docID) {
         List<Byte> byteList = new ArrayList<Byte>();
         while (true) {
             byte temp = (byte) ((docID % VAR_BYTE_NUM) | 0x80);
@@ -26,7 +32,12 @@ public class vByteCompression {
         return encoded;
     }
 
-    public long vByteDecode(byte[] encoded) {
+    /**
+     * decodes var-byte array to long
+     * @param encoded a var-byte array
+     * @return long
+     */
+    private long vByteDecode(byte[] encoded) {
         final int len = encoded.length;
         long decoded = 0;
         for (int i = 0; i < len; i++) {

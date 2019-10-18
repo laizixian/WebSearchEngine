@@ -14,11 +14,22 @@ public class Parser {
         _inputStream = null;
     }
 
+    /**
+     * check if the record is valid
+     * @param record a WarcRecord object
+     * @return boolean
+     */
     public boolean checkValid(WarcRecord record) {
         HeaderLine filename = record.getHeader("WARC-Target-URI");
         return filename != null && record.hasPayload();
     }
 
+    /**
+     * Check if the document is English document base on a threshold
+     * @param Payload String
+     * @param threshold double
+     * @return boolean
+     */
     public boolean checkForASCII (String Payload, double threshold) {
         int totalLength = Payload.length();
         int ASCIICount = 0;
@@ -31,6 +42,11 @@ public class Parser {
         return ASCIIPercentage >= threshold;
     }
 
+    /**
+     * read the file as a WarcReader
+     * @param fileName String of file name
+     * @return WarcReader for the file
+     */
     public WarcReader readWarc(String fileName) {
         File inputFile = new File(fileName);
         try {
@@ -42,12 +58,22 @@ public class Parser {
         return null;
     }
 
+    /**
+     * check if the character is letter or digit
+     * @param c character
+     * @return boolean
+     */
     private boolean isLetterOrDigit(char c) {
         return (c >= 'a' && c <= 'z') ||
                 (c >= 'A' && c <= 'Z') ||
                 (c >= '0' && c <= '9');
     }
 
+    /**
+     * parse words from the payload and add to word list
+     * @param payload String
+     * @param wordList List of String
+     */
     void getWordsList(String payload, List<String> wordList) {
         int len = payload.length();
         int startIndex = isLetterOrDigit(payload.charAt(0)) ? 0 : 1;
@@ -70,6 +96,9 @@ public class Parser {
         }
     }
 
+    /**
+     * close the input stream used
+     */
     public void closeInputStream() {
         try {
             if (_inputStream != null) {

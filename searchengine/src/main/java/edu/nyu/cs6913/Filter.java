@@ -30,6 +30,11 @@ public class Filter extends WarcWriterFactory {
         }
     }
 
+    /**
+     * creates filtered wet.warc.gz files
+     * @param args input path, output path, threshold
+     * @throws IOException if the input path/output path does not exist
+     */
     public static void main(String[] args) throws IOException {
         String inputPath = args[0];
         String outputPath = args[1];
