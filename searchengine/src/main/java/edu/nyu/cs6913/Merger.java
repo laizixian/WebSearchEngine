@@ -99,6 +99,10 @@ public class Merger {
         File[] lexiconFiles = lexiconDir.listFiles(lexiconFilter);
         assert lexiconFiles != null;
         ArrayList<oneLexicon> lexiconsList = new ArrayList<>();
+        /*
+        PriorityQueue<> fileReaderList = new PriorityQueue();
+
+         */
         for (File f : lexiconFiles) {
             try {
                 BufferedReader reader = new BufferedReader(new FileReader(f));
