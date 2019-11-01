@@ -21,6 +21,16 @@ public class queryProcessing {
         bfd.close();
     }
 
+    private void loadDocID(DocID docID, String filePath) throws IOException {
+        BufferedReader bfd = new BufferedReader(new FileReader(filePath));
+        String line = bfd.readLine();
+        while (line != null) {
+            docID.add(line);
+            line = bfd.readLine();
+        }
+        bfd.close();
+    }
+
     public static void main(String[] args) throws IOException {
         String home = System.getProperty("user.home");
         String inputPath = args[0];
@@ -36,6 +46,7 @@ public class queryProcessing {
         processor.loadLexicon(lexicon, LexiconPath + "Lexicon");
 
         System.out.println("Loading DocIDs");
+        DocID docID = new DocID();
 
     }
 }
