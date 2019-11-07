@@ -17,7 +17,8 @@ public class createInvertedIndex {
         File[] inputFiles = inputDir.listFiles(gzFilter);
         Parser parser = new Parser();
         assert inputFiles != null;
-        Postings subPostings = new Postings(RAM_Size, trueInputPath);
+        mongodbDriver mongodb = new mongodbDriver("localhost", 32770);
+        Postings subPostings = new Postings(RAM_Size, trueInputPath, mongodb);
         int totalFiles = inputFiles.length;
         //create sub inverted indexes
         File DocIDFile = new File(subPostings._tempDocID + "DocIDs");
@@ -31,6 +32,9 @@ public class createInvertedIndex {
                 System.out.println("Parsing: " + inputFilePath);
                 subPostings.parseReader(warcReader, docIDBufferedWriter, i, totalFiles);
             }
+            System.out.println(subPostings._totalLength);
+            mongodb.setCollection("website", "info");
+            mongodb.insert("totalLength", Long.toString(subPostings._totalLength));
             docIDBufferedWriter.close();
             docIDFileWriter.close();
         } catch (IOException e) {

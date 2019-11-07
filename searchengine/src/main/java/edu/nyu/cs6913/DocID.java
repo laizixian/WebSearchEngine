@@ -3,13 +3,19 @@ package edu.nyu.cs6913;
 import java.util.HashMap;
 import java.util.Map;
 
-public class DocID {
-    Map<Long, String> _mapDocIDToDocName;
-    public DocID() {
+class DocID {
+    private Map<Long, String> _mapDocIDToDocName;
+    DocID() {
         _mapDocIDToDocName = new HashMap<>();
     }
 
-    public void add(Long DocID, String docName) {
-        _mapDocIDToDocName.put(DocID, docName);
+    void add(Long docID, String docName) {
+        _mapDocIDToDocName.put(docID, docName);
+    }
+    String get (long id) {
+        return _mapDocIDToDocName.get(id);
+    }
+    long getSize() {
+        return _mapDocIDToDocName.size();
     }
 }

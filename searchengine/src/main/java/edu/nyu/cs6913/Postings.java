@@ -24,6 +24,8 @@ class Postings {
     private String _tempInvertedIndex;
     private long _currBlockSizeBytes;
     private vByteCompression _encoder = new vByteCompression();
+    long _totalLength = 0;
+    private mongodbDriver _mongodb;
 
     private class docIDtoFreq {
         byte[] _docID;
@@ -34,7 +36,7 @@ class Postings {
         }
     }
 
-    Postings(long maxBlockSizeMB, String outputPath) {
+    Postings(long maxBlockSizeMB, String outputPath, mongodbDriver mongodb) {
         _maxBlockSizeBytes = maxBlockSizeMB * 1024 * 1024;
         _currBlockSizeBytes = 0;
         _fileDocID = 0;
@@ -47,6 +49,7 @@ class Postings {
         new File(_tempDocID).mkdirs();
         new File(_tempLexicon).mkdirs();
         new File(_tempInvertedIndex).mkdirs();
+        _mongodb = mongodb;
     }
 
     /**
@@ -157,9 +160,12 @@ class Postings {
                 payloadStream = record.getPayload().getInputStreamComplete();
                 temp = new BufferedInputStream(payloadStream);
                 String payload = IOUtils.toString(temp, "UTF-8");
+                _totalLength += payload.length();
                 HeaderLine filename = record.getHeader("WARC-Target-URI");
-                docIDBufferedWriter.write(filename.value + "\n");
+                docIDBufferedWriter.write(filename.value + " " + payload.length() + "\n");
                 _fileDocID++;
+                _mongodb.setCollection("website", "siteContent");
+                _mongodb.insert(_fileDocID, filename.value, payload);
                 List<String> wordList = new ArrayList<>();
                 parser.getWordsList(payload, wordList);
                 addWordToFreq(wordList);

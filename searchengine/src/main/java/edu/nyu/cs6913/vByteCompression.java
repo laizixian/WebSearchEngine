@@ -1,6 +1,7 @@
 package edu.nyu.cs6913;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class vByteCompression {
@@ -47,8 +48,25 @@ public class vByteCompression {
         return decoded;
     }
 
+    List<Long> vByteDecodeArray(byte[] encoded) {
+        int startIndex = 0;
+        final int len = encoded.length;
+        ArrayList<Long> decodedList = new ArrayList<>();
+        for (int i = 1; i < len; i++) {
+            if (encoded[i] >= 0) {
+                long decoded = vByteDecode(Arrays.copyOfRange(encoded, startIndex, i));
+                decodedList.add(decoded);
+                startIndex = i;
+
+            }
+        }
+        decodedList.add(vByteDecode(Arrays.copyOfRange(encoded, startIndex, len)));
+        return decodedList;
+    }
+
     public static void main(String[] args) {
         vByteCompression test = new vByteCompression();
-        System.out.println(test.vByteDecode(test.vByteEncode(162)));
+        System.out.println(test.vByteDecode(test.vByteEncode(0)));
+        System.out.println(Arrays.toString(test.vByteEncode(0)));
     }
 }

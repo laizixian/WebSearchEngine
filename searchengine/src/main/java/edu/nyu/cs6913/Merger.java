@@ -62,7 +62,7 @@ public class Merger {
     /**
      * delete all the temp files
      */
-    void deleteTempFiles() {
+    private void deleteTempFiles() {
         String _invertedIndexFilePath = "temp/InvertedIndex";
         String invertedIndexPath = _inputPath + _invertedIndexFilePath;
         String _lexiconFilePath = "temp/Lexicon";
